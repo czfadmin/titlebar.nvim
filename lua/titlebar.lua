@@ -1,4 +1,3 @@
-local Icons = require("nvim-web-devicons")
 local M = {}
 _G.__tabbar_private = _G.__tabbar_private or {}
 
@@ -11,6 +10,20 @@ M.options = {
   show_filetype = true,
   file_path_type = "absolute",
   show_project_name = true,
+  show_diagnostics = true,
+  show_buf_id = false,
+
+  colors = {},
+  icons = {
+    modified = " ● ",
+    left_trunc_marker = "",
+    right_trunc_marker = "",
+    lock = "  ",
+    theme = {
+      light = " ",
+      dark = " ",
+    },
+  },
 }
 
 -- 获取当前文件信息
@@ -33,6 +46,11 @@ local function get_file_info()
 end
 
 local function get_file_icon(element)
+  local has_icon, Icons = pcall(require, "nvim-web-devicons")
+  if not has_icon then
+    return nil, nil
+  end
+
   return Icons.get_icon_by_filetype(element.filetype, {
     default = false,
   })
@@ -45,29 +63,27 @@ local function generate_tabline()
 
   local middle_components = {}
 
-  local middle_comps_length = 0
-  local right_comps_length = 0
-
   -- 获取当前窗口宽度
   -- local window_width = vim.api.nvim_win_get_width(0)
   local window_width = vim.api.nvim_get_option_value("columns", {})
-
   -- 中间组件:
+  -- 显示文档错误
+  if M.options.show_diagnostics then
+    -- table.insert(list, pos, value)
+  end
 
   -- 修改标记
   if M.options.show_modified and info.modified then
-    local icon = " [+] "
-    -- middle_component = middle_component .. "%#TabLineModified# [+]"
-    table.insert(middle_components, "%#TabLineModified#" .. icon)
-    middle_comps_length = middle_comps_length + #icon
+    table.insert(middle_components, "%#TabLineModified#" .. M.options.icons.modified)
   end
 
   -- 文件类型
   if M.options.show_filetype then
     local icon, hl = get_file_icon(info)
     icon = (icon or "") .. " "
-    table.insert(middle_components, "%#" .. hl .. "#" .. icon)
-    middle_comps_length = middle_comps_length + #icon
+    if hl then
+      table.insert(middle_components, "%#" .. hl .. "#" .. icon)
+    end
   end
 
   -- 文件名
@@ -75,87 +91,73 @@ local function generate_tabline()
 
   table.insert(middle_components, file_name_component)
 
-  middle_comps_length = middle_comps_length + #info.name + 1
-
   -- 文件路径
   if M.options.show_file_path then
     table.insert(middle_components, "%#TabLine# ~ ")
     local file_path = M.options.file_path_type == "absolute" and info.path or vim.fn.fnamemodify(info.path, ":~") -- 根据配置选择路径类型
     table.insert(middle_components, "%#TabLine# " .. file_path .. " ")
-    middle_comps_length = middle_comps_length + #file_path + 5
   end
 
   -- 锁图标
   if info.readonly then
-    local icon = "  "
-    -- middle_component = middle_component .. "%#TabLine# " .. "  " .. " "
-    table.insert(middle_components, "%#TabLine#" .. icon)
-    middle_comps_length = middle_comps_length + #icon
+    table.insert(middle_components, "%#TabLine#" .. M.options.icons.lock)
   end
-
-  local middle_padding = math.max(0, math.floor((window_width - middle_comps_length) / 2))
-
-  table.insert(middle_components, 1, string.rep(" ", middle_padding))
+  table.insert(middle_components, 1, "%=")
 
   -- 将文件编码和主题图标放置到最右侧
   local right_components = {}
-  local theme_icon = M.options.current_theme == "light" and " " or " "
+  local theme_icon = M.options.current_theme == "light" and M.options.icons.theme.dark or M.options.icons.theme.light
 
-  right_comps_length = #theme_icon
-
-  table.insert(right_components, 1, string.rep(" ", (window_width - middle_comps_length + right_comps_length) / 2))
-
-  table.insert(right_components, "%@v:lua.__tabbar_private.toggle_theme@" .. "%#TabLine#" .. theme_icon)
-
-  -- print(vim.inspect({
-  --   window_width = window_width,
-  --   right_components = right_components,
-  --   left_components = left_components,
-  --   middle_components = middle_components
-  -- }))
+  -- 右对齐右面的组件
+  table.insert(right_components, "%=%@v:lua.__tabbar_private.toggle_theme@" .. "%#TabLine#" .. theme_icon)
 
   -- 组合所有部分
-  local tabline = table.concat(
-    { table.concat(left_components, ""), table.concat(middle_components, ""), table.concat(right_components, "") },
-    ""
-  )
-
-  -- -- 根据窗口宽度调整标签栏内容
-  -- if #tabline > window_width then
-  --     tabline = string.sub(tabline, 1, window_width - 3) .. "..." -- 超出宽度时添加省略号
-  -- else
-  --     -- 添加空格以填满窗口
-  --     tabline = tabline .. string.rep(" ", window_width - #tabline)
-  -- end
+  local tabline = table.concat({
+    table.concat(left_components, ""),
+    table.concat(middle_components, ""),
+    table.concat(right_components, ""),
+  }, "")
 
   return tabline -- 返回拼接后的字符串
 end
 
-local function insert_left() end
-
-local function insert_middle() end
-
-local function insert_right() end
-
-local function composer(left, middle, right) end
-
 -- 设置高亮组
 local function set_highlights()
-  local colors = M.options.colors
-
-  vim.api.nvim_command("hi TitlebarPath guifg=" .. colors.foreground .. " guibg=" .. colors.background)
-  vim.api.nvim_command("hi TitlebarFileName guifg=" .. colors.foreground .. " guibg=" .. colors.background)
-  vim.api.nvim_command("hi TitlebarModified guifg=" .. colors.modified .. " guibg=" .. colors.background)
-  vim.api.nvim_command("hi TitlebarFileType guifg=" .. colors.foreground .. " guibg=" .. colors.background)
-  vim.api.nvim_command("hi TitlebarEncoding guifg=" .. colors.foreground .. " guibg=" .. colors.background)
+  -- local colors = M.options.colors or {}
+  --
+  -- vim.api.nvim_command("hi TitlebarPath guifg=" .. colors.foreground .. " guibg=" .. colors.background)
+  -- vim.api.nvim_command("hi TitlebarFileName guifg=" .. colors.foreground .. " guibg=" .. colors.background)
+  -- vim.api.nvim_command("hi TitlebarModified guifg=" .. colors.modified .. " guibg=" .. colors.background)
+  -- vim.api.nvim_command("hi TitlebarFileType guifg=" .. colors.foreground .. " guibg=" .. colors.background)
+  -- vim.api.nvim_command("hi TitlebarEncoding guifg=" .. colors.foreground .. " guibg=" .. colors.background)
 end
 
 -- 切换主题
 local function toggle_theme()
   M.options.current_theme = M.options.current_theme == "dark" and "light" or "dark"
-  -- vim.cmd("colorscheme " .. M.options.current_theme) -- 切换颜色主题
   vim.o.background = M.options.current_theme
   vim.o.tabline = generate_tabline() -- 更新标签栏内容
+end
+
+local function set_autocmds()
+  local group = vim.api.nvim_create_augroup("czfadmin.titlebar.tabline", {
+    clear = true,
+  })
+  vim.api.nvim_create_autocmd({ "BufEnter", "BufModifiedSet", "WinEnter" }, {
+    group = group,
+    callback = function()
+      vim.o.tabline = generate_tabline() -- 更新标签栏内容
+    end,
+  })
+
+  vim.api.nvim_create_autocmd({ "VimResized" }, {
+    group = vim.api.nvim_create_augroup("czfadmin.titlebar.vimresized", {
+      clear = true,
+    }),
+    callback = function()
+      vim.o.tabline = generate_tabline()
+    end,
+  })
 end
 
 -- 设置标签栏
@@ -168,18 +170,7 @@ function M.setup(opts)
   set_highlights()
 
   -- 设置标签栏
-  vim.o.tabline = "%{luaeval('require(\"titlebar\").get_tabline()')}" -- 确保格式正确
-
-  -- 自动命令组
-  local group = vim.api.nvim_create_augroup("Tabline", {
-    clear = true,
-  })
-  vim.api.nvim_create_autocmd({ "BufEnter", "BufModifiedSet", "WinEnter" }, {
-    group = group,
-    callback = function()
-      vim.o.tabline = generate_tabline() -- 更新标签栏内容
-    end,
-  })
+  vim.o.tabline = "%{luaeval('require(\"titlebar\").get_tabline()')}"
 
   -- 点击切换主题
   vim.api.nvim_create_autocmd("User", {
@@ -191,6 +182,8 @@ function M.setup(opts)
 
   -- 在当前窗口中打开标签栏
   M.open_in_window(0) -- 0 表示当前窗口
+
+  set_autocmds()
 end
 
 -- 获取标签栏内容
