@@ -4,8 +4,8 @@
 Table of Contents                         *czfadmin.titlebar*
 
 1. A Neovim Plugin Template        |titlebar|
-  - Using it              |titlebar|
-  - Features and structure|titlebar|
+  - Using it              |using-it|
+  - Features and structure |features-and-structure|
 
 ==============================================================================
 1. Introduction        *titlebar*
@@ -15,7 +15,7 @@ Table of Contents                         *czfadmin.titlebar*
 A Neovim plugin similar to vscode title bar
 
 
-USING IT                  *titlebar*
+USING IT                  *using-it*
 
 >
 
@@ -27,7 +27,7 @@ return {
 
 
 
-FEATURES AND STRUCTURE*titlebar*
+FEATURES AND STRUCTURE*features-and-structure*
 
 
 
