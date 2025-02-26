@@ -1,4 +1,5 @@
 local M = {}
+
 _G.__tabbar_private = _G.__tabbar_private or {}
 
 -- 设置默认配置
@@ -13,16 +14,25 @@ M.options = {
   show_diagnostics = true,
   show_buf_id = false,
 
-  colors = {},
-  icons = {
-    modified = " ● ",
-    left_trunc_marker = "",
-    right_trunc_marker = "",
-    lock = "  ",
-    theme = {
+  -- navigation = {
+  --   enabled = true,
+  --   icons = {
+  --     back = "  ",
+  --     forward = "  ",
+  --   },
+  -- },
+  --
+  theme = {
+    enabled = true,
+    icons = {
       light = " ",
       dark = " ",
     },
+  },
+  colors = {},
+  icons = {
+    modified = " ● ",
+    lock = "  ",
   },
 }
 
@@ -66,11 +76,21 @@ local function generate_tabline()
   -- 获取当前窗口宽度
   -- local window_width = vim.api.nvim_win_get_width(0)
   local window_width = vim.api.nvim_get_option_value("columns", {})
+
   -- 中间组件:
   -- 显示文档错误
   if M.options.show_diagnostics then
     -- table.insert(list, pos, value)
   end
+
+  table.insert(middle_components, "%=")
+
+  -- if M.options.navigation.enabled then
+  --   table.insert(
+  --     middle_components,
+  --     "%#TabLine#" .. M.options.navigation.icons.back .. "%#TabLine#" .. M.options.navigation.icons.forward .. " "
+  --   )
+  -- end
 
   -- 修改标记
   if M.options.show_modified and info.modified then
@@ -102,14 +122,17 @@ local function generate_tabline()
   if info.readonly then
     table.insert(middle_components, "%#TabLine#" .. M.options.icons.lock)
   end
-  table.insert(middle_components, 1, "%=")
 
   -- 将文件编码和主题图标放置到最右侧
   local right_components = {}
-  local theme_icon = M.options.current_theme == "light" and M.options.icons.theme.dark or M.options.icons.theme.light
 
-  -- 右对齐右面的组件
-  table.insert(right_components, "%=%@v:lua.__tabbar_private.toggle_theme@" .. "%#TabLine#" .. theme_icon)
+  table.insert(right_components, "%=")
+
+  if M.options.theme.enabled then
+    local theme_icon = M.options.current_theme == "light" and M.options.theme.icons.dark or M.options.theme.icons.light
+    -- 右对齐右面的组件
+    table.insert(right_components, "%@v:lua.__tabbar_private.toggle_theme@" .. "%#TabLine#" .. theme_icon)
+  end
 
   -- 组合所有部分
   local tabline = table.concat({
@@ -143,14 +166,20 @@ local function set_autocmds()
   local group = vim.api.nvim_create_augroup("czfadmin.titlebar.tabline", {
     clear = true,
   })
-  vim.api.nvim_create_autocmd({ "BufEnter", "BufModifiedSet", "WinEnter" }, {
+  vim.api.nvim_create_autocmd({
+    "BufEnter",
+    "BufModifiedSet",
+    "WinEnter",
+  }, {
     group = group,
     callback = function()
       vim.o.tabline = generate_tabline() -- 更新标签栏内容
     end,
   })
 
-  vim.api.nvim_create_autocmd({ "VimResized" }, {
+  vim.api.nvim_create_autocmd({
+    "VimResized",
+  }, {
     group = vim.api.nvim_create_augroup("czfadmin.titlebar.vimresized", {
       clear = true,
     }),
@@ -162,7 +191,6 @@ end
 
 -- 设置标签栏
 function M.setup(opts)
-  -- 合并用户配置
   M.options = vim.tbl_deep_extend("force", M.options, opts or {})
   M.options.current_theme = M.options.current_theme or "dark" -- 默认主题
 
@@ -171,14 +199,6 @@ function M.setup(opts)
 
   -- 设置标签栏
   vim.o.tabline = "%{luaeval('require(\"titlebar\").get_tabline()')}"
-
-  -- 点击切换主题
-  vim.api.nvim_create_autocmd("User", {
-    pattern = "TablineClick",
-    callback = function()
-      toggle_theme() -- 切换主题
-    end,
-  })
 
   -- 在当前窗口中打开标签栏
   M.open_in_window(0) -- 0 表示当前窗口
